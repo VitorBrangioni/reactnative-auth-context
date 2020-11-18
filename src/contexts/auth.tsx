@@ -1,4 +1,6 @@
-import React, {createContext, useState} from 'react';
+import React, {createContext, useState, useEffect} from 'react';
+import AsyncStorage from '@react-native-community/async-storage';
+
 import * as auth from '../services/auth';
 
 interface AuthContextData {
@@ -13,14 +15,36 @@ const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 export const AuthProvider: React.FC = ({children}) => {
   const [user, setUser] = useState<object | null>(null);
 
+  useEffect(() => {
+    async function getStorage() {
+      const [
+        [, userStoraged],
+        [, tokenStoraged],
+      ] = await AsyncStorage.multiGet([
+        '@ContextAuth::user',
+        '@ContextAuth::token',
+      ]);
+      console.log('userStoraged = ', userStoraged);
+      console.log('tokenStoraged = ', tokenStoraged);
+
+      if (userStoraged && tokenStoraged) {
+        setUser(JSON.parse(userStoraged));
+      }
+    }
+    getStorage();
+  }, []);
+
   async function signIn() {
     const response = await auth.signIn();
+
+    AsyncStorage.setItem('@ContextAuth::user', JSON.stringify(response.user));
+    AsyncStorage.setItem('@ContextAuth::token', response.token);
 
     setUser(response.user);
   }
 
   function signOut() {
-    setUser(null);
+    AsyncStorage.clear().then((_) => setUser(null));
   }
 
   return (
